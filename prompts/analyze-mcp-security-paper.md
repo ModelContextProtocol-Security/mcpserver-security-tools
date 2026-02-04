@@ -12,10 +12,11 @@ Papers are "software that runs in an AI runtime" - we want to make them actionab
 
 1. Read `data/mcp-security-tools.csv` to see which papers exist
 2. Pick a paper that doesn't have an analysis file yet
-3. Read the paper markdown from `resources/papers/{arxiv-id}/paper.md`
+3. Read the paper markdown from `resources/papers/{arxiv-id}/{arxiv-id}.md`
 4. Write analysis to `data/paper-analyses/{arxiv-id}.md`
-5. Update the CSV `evaluation_file` column
-6. **Append discoveries** to `data/research-notes.md`
+5. If prompts found, write to `resources/papers/{arxiv-id}/{arxiv-id}-prompts.md`
+6. Update the CSV `evaluation_file` column
+7. **Append discoveries** to `data/research-notes.md`
 
 ## What to extract
 
@@ -60,10 +61,14 @@ Look for things we should add to `mcp-security-tools.csv`:
 ### 5. Extractable assets
 Things we could use directly:
 
-**Prompts:**
+**Prompts** (extract verbatim if possible):
 - Detection prompts used in the paper
 - Attack prompts demonstrated
 - Defense prompts proposed
+- System prompts or instructions
+- Evaluation prompts used in experiments
+
+If you find prompts, save them to `{arxiv-id}-prompts.md` (see Output section).
 
 **Taxonomies:**
 - Attack classifications
@@ -100,15 +105,45 @@ analyzed: YYYY-MM-DD
 
 Then sections for each extraction area above.
 
-### 2. CSV update
+### 2. Prompts file (if applicable)
+`resources/papers/{arxiv-id}/{arxiv-id}-prompts.md`
+
+Only create this file if the paper contains actual prompts. Format:
+
+```markdown
+# Prompts from {Paper Title}
+
+Source: arXiv:{arxiv-id}
+
+## [Prompt Name/Purpose]
+
+**Type:** [attack | defense | detection | evaluation | system]
+**Location:** [Section X.X, page N, or "Appendix A"]
+**Context:** [Brief explanation of what this prompt does and when/how it's used]
+
+```
+[The actual prompt text, verbatim if possible]
+```
+
+**Notes:** [Any observations about effectiveness, limitations, or how to adapt it]
+
+---
+
+## [Next Prompt]
+...
+```
+
+Include all prompts you can find - even partial ones are valuable.
+
+### 3. CSV update
 Add analysis filename to the `evaluation_file` column for the paper row.
 
-### 3. Discovery additions
+### 4. Discovery additions
 For each tool/paper/resource discovered:
 - If it seems relevant, add a new row to `mcp-security-tools.csv`
 - Note in the analysis which items were added
 
-### 4. Research notes update
+### 5. Research notes update
 Append to **Evaluation Log** in `data/research-notes.md`:
 
 ```markdown
