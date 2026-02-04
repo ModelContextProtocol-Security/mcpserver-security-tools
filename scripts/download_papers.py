@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 """
-Download academic papers from arXiv and convert to markdown using marker.
+Download academic papers from arXiv and convert to markdown using Claude API.
 
 For each paper:
 1. Creates resources/papers/{arxiv-id}/ directory
 2. Downloads PDF from arXiv
-3. Converts to markdown using marker_single (preserves images)
+3. Converts to markdown using Claude API (understands paper structure)
 4. Creates README.md with attribution
+
+Requires: ANTHROPIC_API_KEY environment variable
 
 Usage:
     python scripts/download_papers.py [--paper ARXIV_ID]
 
     # Process all papers (skips completed ones, ctrl+c safe)
     python scripts/download_papers.py
-
-    # Human mode - show progress bars and verbose output
-    python scripts/download_papers.py --i-am-a-human
 
     # Download specific paper
     python scripts/download_papers.py --paper 2512.06556
@@ -28,15 +27,21 @@ Usage:
 """
 
 import argparse
+import base64
 import csv
 import os
 import re
 import shutil
-import subprocess
 import sys
 import tempfile
 import urllib.request
 from pathlib import Path
+
+try:
+    import anthropic
+except ImportError:
+    print("Error: anthropic package not installed. Run: pip install anthropic")
+    sys.exit(1)
 
 
 def get_arxiv_id_from_url(url: str) -> str | None:
@@ -86,39 +91,72 @@ def download_pdf(arxiv_id: str, output_path: Path) -> bool:
         return False
 
 
-def convert_with_marker(pdf_path: Path, output_dir: Path, human_mode: bool = False) -> bool:
-    """Convert PDF to markdown using marker_single."""
-    if human_mode:
-        print(f"  Converting with marker (progress bars show page-by-page status)...")
-    else:
-        print(f"  Converting with marker...")
+def convert_with_claude(pdf_path: Path, paper: dict) -> str | None:
+    """Convert PDF to markdown using Claude API."""
+    print(f"  Converting with Claude API...")
+
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        print("  Error: ANTHROPIC_API_KEY environment variable not set")
+        return None
+
+    # Read PDF as base64
+    with open(pdf_path, 'rb') as f:
+        pdf_data = base64.standard_b64encode(f.read()).decode('utf-8')
+
+    client = anthropic.Anthropic(api_key=api_key)
+
+    prompt = f"""Convert this academic paper to well-formatted markdown.
+
+Requirements:
+- Preserve the paper structure: title, authors, abstract, sections, subsections
+- Convert tables to markdown tables
+- Convert equations to LaTeX (inline $...$ or block $$...$$)
+- Describe figures briefly in [Figure N: description] format
+- Preserve all citations and references
+- Use proper heading hierarchy (# for title, ## for sections, ### for subsections)
+- Keep the academic tone and all technical content
+
+The paper is: {paper['name']}
+
+Output ONLY the markdown content, no preamble or explanation."""
 
     try:
-        cmd = [
-            'marker_single',
-            str(pdf_path),
-            '--output_dir', str(output_dir),
-            '--output_format', 'markdown'
-        ]
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=16000,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "document",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "application/pdf",
+                                "data": pdf_data,
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": prompt
+                        }
+                    ],
+                }
+            ],
+        )
 
-        if human_mode:
-            # Show progress bars in terminal
-            result = subprocess.run(cmd)
-        else:
-            # Quiet mode for AI - suppress progress bars
-            cmd.append('--disable_tqdm')
-            result = subprocess.run(cmd, capture_output=True, text=True)
+        # Extract text from response
+        markdown_content = message.content[0].text
+        print(f"  Received {len(markdown_content)} characters from Claude")
+        return markdown_content
 
-        if result.returncode != 0:
-            if human_mode:
-                print(f"  Marker failed with return code {result.returncode}")
-            else:
-                print(f"  Marker failed: {getattr(result, 'stderr', 'unknown error')}")
-            return False
-        return True
+    except anthropic.APIError as e:
+        print(f"  Claude API error: {e}")
+        return None
     except Exception as e:
-        print(f"  Error running marker: {e}")
-        return False
+        print(f"  Error calling Claude: {e}")
+        return None
 
 
 def create_readme(paper_dir: Path, paper: dict, md_filename: str):
@@ -136,8 +174,7 @@ def create_readme(paper_dir: Path, paper: dict, md_filename: str):
 
 ## Contents
 
-- `{md_filename}` - Markdown conversion of the paper
-- `images/` - Extracted figures (if any)
+- `{md_filename}` - Markdown conversion of the paper (converted using Claude API)
 
 ## License
 
@@ -155,7 +192,7 @@ Visit {paper['url']} for citation information.
     print(f"  Created README.md")
 
 
-def process_paper(paper: dict, resources_dir: Path, force: bool = False, human_mode: bool = False) -> bool:
+def process_paper(paper: dict, resources_dir: Path, force: bool = False) -> bool:
     """Process a single paper: download, convert, create README."""
     arxiv_id = paper['arxiv_id']
     paper_dir = resources_dir / 'papers' / arxiv_id
@@ -180,47 +217,16 @@ def process_paper(paper: dict, resources_dir: Path, force: bool = False, human_m
         if not download_pdf(arxiv_id, pdf_path):
             return False
 
-        # Convert with marker
-        if not convert_with_marker(pdf_path, paper_dir, human_mode=human_mode):
+        # Convert with Claude
+        markdown_content = convert_with_claude(pdf_path, paper)
+        if not markdown_content:
             return False
 
-    # Marker creates a nested subdirectory with the PDF name
-    # Structure: paper_dir/{arxiv_id}/{arxiv_id}.md + images
-    marker_subdir = paper_dir / arxiv_id
-
-    if marker_subdir.exists() and marker_subdir.is_dir():
-        # Find markdown file in subdirectory
-        md_files = list(marker_subdir.glob('*.md'))
-        if md_files:
-            # Move markdown to paper.md
-            src_md = md_files[0]
-            dst_md = paper_dir / 'paper.md'
-            shutil.move(str(src_md), str(dst_md))
-            print(f"  Created paper.md")
-
-            # Move images to images/ subdirectory
-            image_files = list(marker_subdir.glob('*.jpeg')) + list(marker_subdir.glob('*.png'))
-            if image_files:
-                images_dir = paper_dir / 'images'
-                images_dir.mkdir(exist_ok=True)
-                for img in image_files:
-                    shutil.move(str(img), str(images_dir / img.name))
-                print(f"  Moved {len(image_files)} images to images/")
-
-            # Remove the now-empty marker subdirectory (and any leftover files like meta.json)
-            shutil.rmtree(marker_subdir)
-        else:
-            print(f"  Warning: No markdown file found in marker output")
-    else:
-        # Fallback: check for markdown directly in paper_dir
-        md_files = [f for f in paper_dir.glob('*.md') if f.name != 'README.md']
-        if md_files:
-            new_md_path = paper_dir / 'paper.md'
-            if md_files[0] != new_md_path:
-                md_files[0].rename(new_md_path)
-            print(f"  Created paper.md")
-        else:
-            print(f"  Warning: No markdown file generated")
+        # Save markdown
+        paper_md = paper_dir / 'paper.md'
+        with open(paper_md, 'w') as f:
+            f.write(markdown_content)
+        print(f"  Created paper.md")
 
     # Create README
     create_readme(paper_dir, paper, 'paper.md')
@@ -229,14 +235,17 @@ def process_paper(paper: dict, resources_dir: Path, force: bool = False, human_m
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Download and convert arXiv papers')
+    parser = argparse.ArgumentParser(description='Download and convert arXiv papers using Claude')
     parser.add_argument('--paper', help='Specific arXiv ID to download (e.g., 2512.06556)')
     parser.add_argument('--force', action='store_true', help='Reprocess existing papers')
     parser.add_argument('--list', action='store_true', help='List papers from CSV without downloading')
     parser.add_argument('--status', action='store_true', help='Show status of all papers')
-    parser.add_argument('--i-am-a-human', action='store_true', dest='human_mode',
-                        help='Human mode: show progress bars and verbose output')
     args = parser.parse_args()
+
+    # Check for API key early
+    if not args.list and not args.status and not os.environ.get('ANTHROPIC_API_KEY'):
+        print("Error: ANTHROPIC_API_KEY environment variable not set")
+        sys.exit(1)
 
     # Find repo root
     script_dir = Path(__file__).parent
@@ -302,7 +311,7 @@ def main():
         print(f"[{i+1}/{len(papers)}] Processing: {paper['name']} ({paper['arxiv_id']})")
         print(f"           ({remaining} remaining after this)")
 
-        if process_paper(paper, resources_dir, force=args.force, human_mode=args.human_mode):
+        if process_paper(paper, resources_dir, force=args.force):
             success += 1
             print(f"  ✓ Complete\n")
         else:
