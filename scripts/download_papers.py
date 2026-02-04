@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """
-Download academic papers from arXiv and convert to markdown using Claude API.
+Download academic papers from arXiv and convert to markdown using markitdown.
 
 For each paper:
 1. Creates resources/papers/{arxiv-id}/ directory
 2. Downloads PDF from arXiv
-3. Converts to markdown using Claude API (understands paper structure)
+3. Converts to markdown using markitdown
 4. Creates README.md with attribution
-
-Requires: ANTHROPIC_API_KEY environment variable
 
 Usage:
     python scripts/download_papers.py [--paper ARXIV_ID]
@@ -22,29 +20,20 @@ Usage:
     # Show status of all papers
     python scripts/download_papers.py --status
 
-    # Test API key works
-    python scripts/download_papers.py --test
-
     # Reprocess a specific paper
     python scripts/download_papers.py --paper 2512.06556 --force
 """
 
 import argparse
-import base64
 import csv
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import urllib.request
 from pathlib import Path
-
-try:
-    import anthropic
-except ImportError:
-    print("Error: anthropic package not installed. Run: pip install anthropic")
-    sys.exit(1)
 
 
 def get_arxiv_id_from_url(url: str) -> str | None:
@@ -88,100 +77,30 @@ def download_pdf(arxiv_id: str, output_path: Path) -> bool:
     print(f"  Downloading from {pdf_url}")
     try:
         urllib.request.urlretrieve(pdf_url, output_path)
+        print(f"  Downloaded {output_path.stat().st_size / 1024:.1f} KB")
         return True
     except Exception as e:
         print(f"  Error downloading: {e}")
         return False
 
 
-def convert_with_claude(pdf_path: Path, paper: dict, human_mode: bool = False) -> str | None:
-    """Convert PDF to markdown using Claude API."""
-    api_key = os.environ.get('ANTHROPIC_API_KEY')
-    if not api_key:
-        print("  Error: ANTHROPIC_API_KEY environment variable not set")
-        return None
-
-    # Read PDF as base64
-    pdf_size = pdf_path.stat().st_size
-    if human_mode:
-        print(f"  Reading PDF ({pdf_size / 1024:.1f} KB)...")
-    with open(pdf_path, 'rb') as f:
-        pdf_data = base64.standard_b64encode(f.read()).decode('utf-8')
-
-    client = anthropic.Anthropic(api_key=api_key)
-
-    prompt = f"""Convert this academic paper to well-formatted markdown.
-
-Requirements:
-- Preserve the paper structure: title, authors, abstract, sections, subsections
-- Convert tables to markdown tables
-- Convert equations to LaTeX (inline $...$ or block $$...$$)
-- Describe figures briefly in [Figure N: description] format
-- Preserve all citations and references
-- Use proper heading hierarchy (# for title, ## for sections, ### for subsections)
-- Keep the academic tone and all technical content
-
-The paper is: {paper['name']}
-
-Output ONLY the markdown content, no preamble or explanation."""
-
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {
-                    "type": "document",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "application/pdf",
-                        "data": pdf_data,
-                    },
-                },
-                {
-                    "type": "text",
-                    "text": prompt
-                }
-            ],
-        }
-    ]
-
+def convert_with_markitdown(pdf_path: Path, output_path: Path) -> bool:
+    """Convert PDF to markdown using markitdown."""
+    print(f"  Converting with markitdown...")
     try:
-        if human_mode:
-            # Streaming mode - show progress
-            print(f"  Sending to Claude API (streaming)...")
-            markdown_content = ""
-            char_count = 0
-            with client.messages.stream(
-                model="claude-sonnet-4-20250514",
-                max_tokens=16000,
-                messages=messages,
-            ) as stream:
-                for text in stream.text_stream:
-                    markdown_content += text
-                    char_count += len(text)
-                    # Print progress every 1000 chars
-                    if char_count % 1000 < len(text):
-                        print(f"  ... {char_count:,} chars received", end='\r')
-            print(f"  ✓ Received {len(markdown_content):,} characters from Claude")
-        else:
-            # Non-streaming mode
-            print(f"  Converting with Claude API...")
-            message = client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=16000,
-                messages=messages,
-            )
-            markdown_content = message.content[0].text
-            print(f"  Received {len(markdown_content)} characters from Claude")
-
-        return markdown_content
-
-    except anthropic.APIError as e:
-        print(f"  Claude API error: {e}")
-        return None
+        result = subprocess.run(
+            ['markitdown', str(pdf_path), '-o', str(output_path)],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            print(f"  markitdown error: {result.stderr}")
+            return False
+        print(f"  Created paper.md ({output_path.stat().st_size / 1024:.1f} KB)")
+        return True
     except Exception as e:
-        print(f"  Error calling Claude: {e}")
-        return None
+        print(f"  Error running markitdown: {e}")
+        return False
 
 
 def create_readme(paper_dir: Path, paper: dict, md_filename: str):
@@ -199,7 +118,7 @@ def create_readme(paper_dir: Path, paper: dict, md_filename: str):
 
 ## Contents
 
-- `{md_filename}` - Markdown conversion of the paper (converted using Claude API)
+- `{md_filename}` - Markdown conversion of the paper
 
 ## License
 
@@ -217,7 +136,7 @@ Visit {paper['url']} for citation information.
     print(f"  Created README.md")
 
 
-def process_paper(paper: dict, resources_dir: Path, force: bool = False, human_mode: bool = False) -> bool:
+def process_paper(paper: dict, resources_dir: Path, force: bool = False) -> bool:
     """Process a single paper: download, convert, create README."""
     arxiv_id = paper['arxiv_id']
     paper_dir = resources_dir / 'papers' / arxiv_id
@@ -242,16 +161,10 @@ def process_paper(paper: dict, resources_dir: Path, force: bool = False, human_m
         if not download_pdf(arxiv_id, pdf_path):
             return False
 
-        # Convert with Claude
-        markdown_content = convert_with_claude(pdf_path, paper, human_mode=human_mode)
-        if not markdown_content:
-            return False
-
-        # Save markdown
+        # Convert with markitdown
         paper_md = paper_dir / 'paper.md'
-        with open(paper_md, 'w') as f:
-            f.write(markdown_content)
-        print(f"  Created paper.md")
+        if not convert_with_markitdown(pdf_path, paper_md):
+            return False
 
     # Create README
     create_readme(paper_dir, paper, 'paper.md')
@@ -260,44 +173,12 @@ def process_paper(paper: dict, resources_dir: Path, force: bool = False, human_m
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Download and convert arXiv papers using Claude')
+    parser = argparse.ArgumentParser(description='Download and convert arXiv papers')
     parser.add_argument('--paper', help='Specific arXiv ID to download (e.g., 2512.06556)')
     parser.add_argument('--force', action='store_true', help='Reprocess existing papers')
     parser.add_argument('--list', action='store_true', help='List papers from CSV without downloading')
     parser.add_argument('--status', action='store_true', help='Show status of all papers')
-    parser.add_argument('--test', action='store_true', help='Test API key with a simple request')
-    parser.add_argument('--i-am-a-human', action='store_true', dest='human_mode',
-                        help='Human mode: show streaming progress as Claude processes')
     args = parser.parse_args()
-
-    # Test API key
-    if args.test:
-        api_key = os.environ.get('ANTHROPIC_API_KEY')
-        if not api_key:
-            print("✗ ANTHROPIC_API_KEY environment variable not set")
-            sys.exit(1)
-        print(f"API key found: {api_key[:8]}...{api_key[-4:]}")
-        print("Testing API connection...")
-        try:
-            client = anthropic.Anthropic(api_key=api_key)
-            message = client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=100,
-                messages=[{"role": "user", "content": "What is a cat? Reply in one sentence."}]
-            )
-            print(f"✓ API works! Response: {message.content[0].text}")
-            sys.exit(0)
-        except anthropic.APIError as e:
-            print(f"✗ API error: {e}")
-            sys.exit(1)
-        except Exception as e:
-            print(f"✗ Error: {e}")
-            sys.exit(1)
-
-    # Check for API key early
-    if not args.list and not args.status and not os.environ.get('ANTHROPIC_API_KEY'):
-        print("Error: ANTHROPIC_API_KEY environment variable not set")
-        sys.exit(1)
 
     # Find repo root
     script_dir = Path(__file__).parent
@@ -361,9 +242,8 @@ def main():
 
         remaining = len(papers) - i - skipped
         print(f"[{i+1}/{len(papers)}] Processing: {paper['name']} ({paper['arxiv_id']})")
-        print(f"           ({remaining} remaining after this)")
 
-        if process_paper(paper, resources_dir, force=args.force, human_mode=args.human_mode):
+        if process_paper(paper, resources_dir, force=args.force):
             success += 1
             print(f"  ✓ Complete\n")
         else:
