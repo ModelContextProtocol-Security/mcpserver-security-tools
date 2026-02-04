@@ -85,20 +85,19 @@ def download_pdf(arxiv_id: str, output_path: Path) -> bool:
 
 def convert_with_marker(pdf_path: Path, output_dir: Path) -> bool:
     """Convert PDF to markdown using marker_single."""
-    print(f"  Converting with marker...")
+    print(f"  Converting with marker (progress bars show page-by-page status)...")
     try:
+        # Don't capture output - let tqdm progress bars show in terminal
         result = subprocess.run(
             [
                 'marker_single',
                 str(pdf_path),
                 '--output_dir', str(output_dir),
                 '--output_format', 'markdown'
-            ],
-            capture_output=True,
-            text=True
+            ]
         )
         if result.returncode != 0:
-            print(f"  Marker error: {result.stderr}")
+            print(f"  Marker failed with return code {result.returncode}")
             return False
         return True
     except Exception as e:
