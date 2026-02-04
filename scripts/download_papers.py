@@ -94,16 +94,17 @@ def download_pdf(arxiv_id: str, output_path: Path) -> bool:
         return False
 
 
-def convert_with_claude(pdf_path: Path, paper: dict) -> str | None:
+def convert_with_claude(pdf_path: Path, paper: dict, human_mode: bool = False) -> str | None:
     """Convert PDF to markdown using Claude API."""
-    print(f"  Converting with Claude API...")
-
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
         print("  Error: ANTHROPIC_API_KEY environment variable not set")
         return None
 
     # Read PDF as base64
+    pdf_size = pdf_path.stat().st_size
+    if human_mode:
+        print(f"  Reading PDF ({pdf_size / 1024:.1f} KB)...")
     with open(pdf_path, 'rb') as f:
         pdf_data = base64.standard_b64encode(f.read()).decode('utf-8')
 
@@ -124,34 +125,55 @@ The paper is: {paper['name']}
 
 Output ONLY the markdown content, no preamble or explanation."""
 
-    try:
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=16000,
-            messages=[
+    messages = [
+        {
+            "role": "user",
+            "content": [
                 {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "document",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "application/pdf",
-                                "data": pdf_data,
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": prompt
-                        }
-                    ],
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": pdf_data,
+                    },
+                },
+                {
+                    "type": "text",
+                    "text": prompt
                 }
             ],
-        )
+        }
+    ]
 
-        # Extract text from response
-        markdown_content = message.content[0].text
-        print(f"  Received {len(markdown_content)} characters from Claude")
+    try:
+        if human_mode:
+            # Streaming mode - show progress
+            print(f"  Sending to Claude API (streaming)...")
+            markdown_content = ""
+            char_count = 0
+            with client.messages.stream(
+                model="claude-sonnet-4-20250514",
+                max_tokens=16000,
+                messages=messages,
+            ) as stream:
+                for text in stream.text_stream:
+                    markdown_content += text
+                    char_count += len(text)
+                    # Print progress every 1000 chars
+                    if char_count % 1000 < len(text):
+                        print(f"  ... {char_count:,} chars received", end='\r')
+            print(f"  ✓ Received {len(markdown_content):,} characters from Claude")
+        else:
+            # Non-streaming mode
+            print(f"  Converting with Claude API...")
+            message = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=16000,
+                messages=messages,
+            )
+            markdown_content = message.content[0].text
+            print(f"  Received {len(markdown_content)} characters from Claude")
+
         return markdown_content
 
     except anthropic.APIError as e:
@@ -195,7 +217,7 @@ Visit {paper['url']} for citation information.
     print(f"  Created README.md")
 
 
-def process_paper(paper: dict, resources_dir: Path, force: bool = False) -> bool:
+def process_paper(paper: dict, resources_dir: Path, force: bool = False, human_mode: bool = False) -> bool:
     """Process a single paper: download, convert, create README."""
     arxiv_id = paper['arxiv_id']
     paper_dir = resources_dir / 'papers' / arxiv_id
@@ -221,7 +243,7 @@ def process_paper(paper: dict, resources_dir: Path, force: bool = False) -> bool
             return False
 
         # Convert with Claude
-        markdown_content = convert_with_claude(pdf_path, paper)
+        markdown_content = convert_with_claude(pdf_path, paper, human_mode=human_mode)
         if not markdown_content:
             return False
 
@@ -244,6 +266,8 @@ def main():
     parser.add_argument('--list', action='store_true', help='List papers from CSV without downloading')
     parser.add_argument('--status', action='store_true', help='Show status of all papers')
     parser.add_argument('--test', action='store_true', help='Test API key with a simple request')
+    parser.add_argument('--i-am-a-human', action='store_true', dest='human_mode',
+                        help='Human mode: show streaming progress as Claude processes')
     args = parser.parse_args()
 
     # Test API key
@@ -339,7 +363,7 @@ def main():
         print(f"[{i+1}/{len(papers)}] Processing: {paper['name']} ({paper['arxiv_id']})")
         print(f"           ({remaining} remaining after this)")
 
-        if process_paper(paper, resources_dir, force=args.force):
+        if process_paper(paper, resources_dir, force=args.force, human_mode=args.human_mode):
             success += 1
             print(f"  ✓ Complete\n")
         else:
