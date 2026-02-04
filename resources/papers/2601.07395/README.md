@@ -11,7 +11,7 @@ Automated implicit tool poisoning achieving 84.2% attack success rate while keep
 
 ## Contents
 
-- `paper.md` - Markdown conversion of the paper
+- `2601.07395.md` - Markdown conversion of the paper
 
 ## License
 

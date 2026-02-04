@@ -11,7 +11,7 @@ Systematization of Knowledge paper. Comprehensive taxonomy distinguishing advers
 
 ## Contents
 
-- `paper.md` - Markdown conversion of the paper
+- `2512.08290.md` - Markdown conversion of the paper
 
 ## License
 

@@ -11,7 +11,7 @@ Academic paper with first systematic taxonomy of MCP security. 17 attack types a
 
 ## Contents
 
-- `paper.md` - Markdown conversion of the paper
+- `2508.13220.md` - Markdown conversion of the paper
 
 ## License
 

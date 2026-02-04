@@ -11,7 +11,7 @@ Layered defense framework: RSA manifest signing + LLM-on-LLM vetting + heuristic
 
 ## Contents
 
-- `paper.md` - Markdown conversion of the paper
+- `2512.06556.md` - Markdown conversion of the paper
 
 ## License
 

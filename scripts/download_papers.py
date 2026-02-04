@@ -66,7 +66,8 @@ def is_paper_complete(paper_dir: Path) -> bool:
     """Check if a paper has been fully processed."""
     if not paper_dir.exists():
         return False
-    paper_md = paper_dir / 'paper.md'
+    arxiv_id = paper_dir.name
+    paper_md = paper_dir / f'{arxiv_id}.md'
     readme_md = paper_dir / 'README.md'
     return paper_md.exists() and readme_md.exists()
 
@@ -96,7 +97,7 @@ def convert_with_markitdown(pdf_path: Path, output_path: Path) -> bool:
         if result.returncode != 0:
             print(f"  markitdown error: {result.stderr}")
             return False
-        print(f"  Created paper.md ({output_path.stat().st_size / 1024:.1f} KB)")
+        print(f"  Created {output_path.name} ({output_path.stat().st_size / 1024:.1f} KB)")
         return True
     except Exception as e:
         print(f"  Error running markitdown: {e}")
@@ -162,12 +163,12 @@ def process_paper(paper: dict, resources_dir: Path, force: bool = False) -> bool
             return False
 
         # Convert with markitdown
-        paper_md = paper_dir / 'paper.md'
+        paper_md = paper_dir / f'{arxiv_id}.md'
         if not convert_with_markitdown(pdf_path, paper_md):
             return False
 
     # Create README
-    create_readme(paper_dir, paper, 'paper.md')
+    create_readme(paper_dir, paper, f'{arxiv_id}.md')
 
     return True
 

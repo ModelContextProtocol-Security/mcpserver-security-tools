@@ -11,7 +11,7 @@ Privacy threat: semi-honest servers can reconstruct user intent (85%+ accuracy) 
 
 ## Contents
 
-- `paper.md` - Markdown conversion of the paper
+- `2512.14166.md` - Markdown conversion of the paper
 
 ## License
 

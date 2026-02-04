@@ -11,7 +11,7 @@ Proposes protocol-level fixes: identity management, mutual authentication, secur
 
 ## Contents
 
-- `paper.md` - Markdown conversion of the paper
+- `2602.01129.md` - Markdown conversion of the paper
 
 ## License
 

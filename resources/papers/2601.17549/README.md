@@ -11,7 +11,7 @@ Identifies three fundamental protocol vulnerabilities. Attacks 23-41% more succe
 
 ## Contents
 
-- `paper.md` - Markdown conversion of the paper
+- `2601.17549.md` - Markdown conversion of the paper
 
 ## License
 

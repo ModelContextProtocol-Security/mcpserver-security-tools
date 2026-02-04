@@ -11,7 +11,7 @@ Academic paper demonstrating major security exploits. Introduces multi-MCP serve
 
 ## Contents
 
-- `paper.md` - Markdown conversion of the paper
+- `2504.03767.md` - Markdown conversion of the paper
 
 ## License
 

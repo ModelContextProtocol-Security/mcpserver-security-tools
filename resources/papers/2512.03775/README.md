@@ -11,7 +11,7 @@ MICRYSCOPE framework analyzing 9403 MCP servers. 19.7% have cryptographic misuse
 
 ## Contents
 
-- `paper.md` - Markdown conversion of the paper
+- `2512.03775.md` - Markdown conversion of the paper
 
 ## License
 

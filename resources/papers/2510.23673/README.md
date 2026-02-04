@@ -11,7 +11,7 @@ Three-stage detection pipeline: static scanning → neural detector → LLM arbi
 
 ## Contents
 
-- `paper.md` - Markdown conversion of the paper
+- `2510.23673.md` - Markdown conversion of the paper
 
 ## License
 
