@@ -16,14 +16,26 @@ There is no fixed schema yet - we're learning what matters as we go.
 - `data/research-notes.md` - Observations, patterns, emerging categories, gaps
 - `prompts/` - AI prompts used for research
 
+## What Belongs Here
+
+This repository catalogs **anything that helps secure MCP implementations**, including:
+
+- **Traditional software tools** - Scanners, gateways, proxies
+- **Academic research papers** - Methodologies, benchmarks, attack taxonomies
+- **Frameworks and benchmarks** - Testing suites, vulnerable-by-design servers
+- **Prompts and prompt-based tools** - AI-assisted security workflows
+
+**Why include papers?** In the AI era, the line between documentation and executable software has blurred. A paper describing a security methodology can be turned into a working tool by having an AI read and implement it. Papers that describe attack taxonomies, defense frameworks, or evaluation methodologies are effectively "software that runs in an AI runtime." We include them because they're actionable - you can use them.
+
 ## Emerging Categories
 
-Based on initial research, we're seeing these types of tools:
+Based on initial research, we're seeing these types:
 
 1. **MCP Server Scanners/Auditors** - Analyze MCP servers for vulnerabilities before deployment
 2. **MCP Gateways** - Runtime security proxies between AI agents and MCP servers
 3. **Security Tools via MCP** - Traditional security tools exposed as MCP servers (inverse - using MCP to do security)
 4. **Directories/Verification** - Catalogs of MCP servers with security verification
+5. **Academic Research** - Papers with methodologies, benchmarks, and attack/defense frameworks
 
 See `data/research-notes.md` for detailed observations.
 
