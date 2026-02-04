@@ -22,6 +22,9 @@ Usage:
     # Show status of all papers
     python scripts/download_papers.py --status
 
+    # Test API key works
+    python scripts/download_papers.py --test
+
     # Reprocess a specific paper
     python scripts/download_papers.py --paper 2512.06556 --force
 """
@@ -240,7 +243,32 @@ def main():
     parser.add_argument('--force', action='store_true', help='Reprocess existing papers')
     parser.add_argument('--list', action='store_true', help='List papers from CSV without downloading')
     parser.add_argument('--status', action='store_true', help='Show status of all papers')
+    parser.add_argument('--test', action='store_true', help='Test API key with a simple request')
     args = parser.parse_args()
+
+    # Test API key
+    if args.test:
+        api_key = os.environ.get('ANTHROPIC_API_KEY')
+        if not api_key:
+            print("✗ ANTHROPIC_API_KEY environment variable not set")
+            sys.exit(1)
+        print(f"API key found: {api_key[:8]}...{api_key[-4:]}")
+        print("Testing API connection...")
+        try:
+            client = anthropic.Anthropic(api_key=api_key)
+            message = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=100,
+                messages=[{"role": "user", "content": "What is a cat? Reply in one sentence."}]
+            )
+            print(f"✓ API works! Response: {message.content[0].text}")
+            sys.exit(0)
+        except anthropic.APIError as e:
+            print(f"✗ API error: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"✗ Error: {e}")
+            sys.exit(1)
 
     # Check for API key early
     if not args.list and not args.status and not os.environ.get('ANTHROPIC_API_KEY'):
