@@ -11,11 +11,17 @@ For each paper:
 Usage:
     python scripts/download_papers.py [--paper ARXIV_ID]
 
-    # Download all papers from CSV
+    # Process all papers (skips completed ones, ctrl+c safe)
     python scripts/download_papers.py
 
     # Download specific paper
     python scripts/download_papers.py --paper 2512.06556
+
+    # Show status of all papers
+    python scripts/download_papers.py --status
+
+    # Reprocess a specific paper
+    python scripts/download_papers.py --paper 2512.06556 --force
 """
 
 import argparse
@@ -54,6 +60,15 @@ def get_papers_from_csv(csv_path: Path) -> list[dict]:
                         'description': row['description']
                     })
     return papers
+
+
+def is_paper_complete(paper_dir: Path) -> bool:
+    """Check if a paper has been fully processed."""
+    if not paper_dir.exists():
+        return False
+    paper_md = paper_dir / 'paper.md'
+    readme_md = paper_dir / 'README.md'
+    return paper_md.exists() and readme_md.exists()
 
 
 def download_pdf(arxiv_id: str, output_path: Path) -> bool:
@@ -131,11 +146,14 @@ def process_paper(paper: dict, resources_dir: Path, force: bool = False) -> bool
     paper_dir = resources_dir / 'papers' / arxiv_id
 
     # Check if already processed
-    if paper_dir.exists() and not force:
-        md_files = list(paper_dir.glob('*.md'))
-        if len(md_files) > 1:  # README.md + content
-            print(f"  Already processed, skipping (use --force to reprocess)")
-            return True
+    if is_paper_complete(paper_dir) and not force:
+        print(f"  Already processed, skipping (use --force to reprocess)")
+        return True
+
+    # Clean up any partial download
+    if paper_dir.exists():
+        print(f"  Cleaning up partial download...")
+        shutil.rmtree(paper_dir)
 
     # Create directory
     paper_dir.mkdir(parents=True, exist_ok=True)
@@ -200,6 +218,7 @@ def main():
     parser.add_argument('--paper', help='Specific arXiv ID to download (e.g., 2512.06556)')
     parser.add_argument('--force', action='store_true', help='Reprocess existing papers')
     parser.add_argument('--list', action='store_true', help='List papers from CSV without downloading')
+    parser.add_argument('--status', action='store_true', help='Show status of all papers')
     args = parser.parse_args()
 
     # Find repo root
@@ -214,11 +233,28 @@ def main():
 
     # Get papers from CSV
     papers = get_papers_from_csv(csv_path)
-    print(f"Found {len(papers)} papers in CSV\n")
 
     if args.list:
+        print(f"Found {len(papers)} papers in CSV:\n")
         for p in papers:
             print(f"  {p['arxiv_id']}: {p['name']}")
+        sys.exit(0)
+
+    # Show status
+    if args.status:
+        complete = 0
+        incomplete = []
+        for p in papers:
+            paper_dir = resources_dir / 'papers' / p['arxiv_id']
+            if is_paper_complete(paper_dir):
+                print(f"  ✓ {p['arxiv_id']}: {p['name']}")
+                complete += 1
+            else:
+                print(f"  ✗ {p['arxiv_id']}: {p['name']}")
+                incomplete.append(p)
+        print(f"\n{complete}/{len(papers)} complete")
+        if incomplete:
+            print(f"\nNext up: {incomplete[0]['arxiv_id']} - {incomplete[0]['name']}")
         sys.exit(0)
 
     # Filter to specific paper if requested
@@ -228,18 +264,41 @@ def main():
             print(f"Error: Paper {args.paper} not found in CSV")
             sys.exit(1)
 
-    # Process papers
+    # Count current status
+    complete_count = sum(1 for p in papers if is_paper_complete(resources_dir / 'papers' / p['arxiv_id']))
+    print(f"Papers: {complete_count}/{len(papers)} complete\n")
+
+    # Process papers one at a time
     success = 0
     failed = 0
-    for paper in papers:
-        print(f"Processing: {paper['name']} ({paper['arxiv_id']})")
+    skipped = 0
+
+    for i, paper in enumerate(papers):
+        paper_dir = resources_dir / 'papers' / paper['arxiv_id']
+
+        # Skip if already complete (unless --force)
+        if is_paper_complete(paper_dir) and not args.force:
+            skipped += 1
+            continue
+
+        remaining = len(papers) - i - skipped
+        print(f"[{i+1}/{len(papers)}] Processing: {paper['name']} ({paper['arxiv_id']})")
+        print(f"           ({remaining} remaining after this)")
+
         if process_paper(paper, resources_dir, force=args.force):
             success += 1
+            print(f"  ✓ Complete\n")
         else:
             failed += 1
-        print()
+            print(f"  ✗ Failed\n")
 
-    print(f"Done: {success} successful, {failed} failed")
+    print(f"Session: {success} processed, {skipped} skipped, {failed} failed")
+
+    # Final status
+    final_complete = sum(1 for p in get_papers_from_csv(csv_path)
+                        if is_paper_complete(resources_dir / 'papers' / p['arxiv_id']))
+    total = len(get_papers_from_csv(csv_path))
+    print(f"Overall: {final_complete}/{total} papers complete")
 
 
 if __name__ == '__main__':
