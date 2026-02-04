@@ -92,6 +92,45 @@ After completing all 19 evaluations, we reviewed what we learned and updated the
 
 **Key insight:** Run the evaluations first, THEN update the prompt based on what you learned. The first pass reveals what dimensions actually matter in practice.
 
+## Step 4: Adding Academic Papers
+
+**Goal:** Include academic research as "tools" since papers with methodologies can be implemented by AI.
+
+**Rationale:**
+In the AI era, the line between documentation and executable software has blurred. A paper describing a security methodology can be turned into a working tool by having an AI read and implement it. Papers that describe attack taxonomies, defense frameworks, or evaluation methodologies are effectively "software that runs in an AI runtime."
+
+**Process:**
+- Searched arXiv for MCP security papers
+- Added papers to CSV with `[Paper]` prefix in name field
+- Created script to download PDFs and convert to markdown using [marker](https://github.com/datalab-to/marker)
+
+**Script:** [scripts/download_papers.py](../scripts/download_papers.py)
+
+```bash
+# List papers from CSV
+python scripts/download_papers.py --list
+
+# Download all papers
+python scripts/download_papers.py
+
+# Download specific paper
+python scripts/download_papers.py --paper 2512.06556
+```
+
+**Output structure:**
+```
+resources/papers/{arxiv-id}/
+├── paper.md     # Markdown conversion
+├── images/      # Extracted figures
+└── README.md    # Attribution and source info
+```
+
+**Why convert to markdown?**
+- Makes papers AI-readable in context windows
+- Preserves figures for visual reference
+- Enables semantic search across paper content
+- Allows AI to implement methodologies described in papers
+
 ## Reproducing This
 
 1. Read the discovery prompt, run web searches, populate the CSV
@@ -99,5 +138,6 @@ After completing all 19 evaluations, we reviewed what we learned and updated the
 3. Note what new dimensions you discovered in the Evaluation Log
 4. Repeat until patterns solidify into a schema
 5. **After a batch of evaluations**: Review findings, identify gaps in the prompt, update it
+6. **For papers**: Run the download script to convert PDFs to markdown
 
 The prompts guide the work but don't constrain it. Adapt as you learn.
