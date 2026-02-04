@@ -13,6 +13,15 @@ Academic paper demonstrating major security exploits. Introduces multi-MCP serve
 
 - `2504.03767.md` - Markdown conversion of the paper
 
+## Conversion notes
+
+Converted using [markitdown](https://github.com/microsoft/markitdown). Limitations:
+- **No images** - figures/diagrams not extracted, refer to PDF for visuals
+- **Tables may be imperfect** - complex tables might not render correctly
+- **Equations** - may appear as plain text rather than LaTeX
+
+For authoritative content, always refer to the original PDF.
+
 ## License
 
 This paper was obtained from arXiv. Please refer to the original paper for licensing terms.
