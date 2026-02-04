@@ -39,6 +39,23 @@ Freeform markdown - capture what seems relevant or interesting:
 - Anything surprising, interesting, or potentially useful
 - Gaps or limitations they acknowledge
 
+### Coverage scope (important - tool poisoning gets most attention, but what about prompts/resources?)
+- Does it scan tools only, or also prompts and resources?
+- Does it check server instructions/metadata?
+- What's explicitly in scope vs out of scope?
+
+### Learning & transparency
+- Does it explain findings (why something is bad, not just that it is)?
+- Does it help users understand MCP security concepts?
+- Is there educational content, or just scan results?
+- Can you learn from using it, or is it a black box?
+- Does it have an `--explain` or similar feature?
+
+### Remediation
+- Does it suggest how to fix issues?
+- Does it help report vulnerabilities upstream?
+- Just detection, or detection + guidance?
+
 Don't worry about being comprehensive or structured - we're learning what matters.
 
 ## Output

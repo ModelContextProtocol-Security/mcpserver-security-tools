@@ -76,11 +76,28 @@ Each evaluation teaches us something. The log captures "new dimensions identifie
 **Why YAML+markdown (obsidian-style)?**
 AI-friendly format. Structured enough to parse, flexible enough for freeform content.
 
+## Step 3: Post-Evaluation Iteration
+
+After completing all 19 evaluations, we reviewed what we learned and updated the prompt.
+
+**What we noticed:**
+- **Tool poisoning dominates**: Almost every scanner focuses on malicious tool descriptions. But what about prompts and resources? Few tools explicitly cover those.
+- **Learning/transparency gap**: Some tools just give results (black box). Others explain findings and teach you about MCP security. This matters.
+- **Remediation varies**: Some tools help you fix issues and report upstream. Others just detect.
+
+**Prompt updates made:**
+- Added "Coverage scope" section: Does it scan tools only, or also prompts and resources?
+- Added "Learning & transparency" section: Does it explain why something is bad? Can you learn from it?
+- Added "Remediation" section: Does it help fix issues or just detect them?
+
+**Key insight:** Run the evaluations first, THEN update the prompt based on what you learned. The first pass reveals what dimensions actually matter in practice.
+
 ## Reproducing This
 
 1. Read the discovery prompt, run web searches, populate the CSV
 2. Pick a tool, read the evaluation prompt, research it, write the evaluation
 3. Note what new dimensions you discovered in the Evaluation Log
 4. Repeat until patterns solidify into a schema
+5. **After a batch of evaluations**: Review findings, identify gaps in the prompt, update it
 
 The prompts guide the work but don't constrain it. Adapt as you learn.
