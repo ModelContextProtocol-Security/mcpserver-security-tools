@@ -14,6 +14,9 @@ Usage:
     # Process all papers (skips completed ones, ctrl+c safe)
     python scripts/download_papers.py
 
+    # Human mode - show progress bars and verbose output
+    python scripts/download_papers.py --i-am-a-human
+
     # Download specific paper
     python scripts/download_papers.py --paper 2512.06556
 
@@ -83,21 +86,34 @@ def download_pdf(arxiv_id: str, output_path: Path) -> bool:
         return False
 
 
-def convert_with_marker(pdf_path: Path, output_dir: Path) -> bool:
+def convert_with_marker(pdf_path: Path, output_dir: Path, human_mode: bool = False) -> bool:
     """Convert PDF to markdown using marker_single."""
-    print(f"  Converting with marker (progress bars show page-by-page status)...")
+    if human_mode:
+        print(f"  Converting with marker (progress bars show page-by-page status)...")
+    else:
+        print(f"  Converting with marker...")
+
     try:
-        # Don't capture output - let tqdm progress bars show in terminal
-        result = subprocess.run(
-            [
-                'marker_single',
-                str(pdf_path),
-                '--output_dir', str(output_dir),
-                '--output_format', 'markdown'
-            ]
-        )
+        cmd = [
+            'marker_single',
+            str(pdf_path),
+            '--output_dir', str(output_dir),
+            '--output_format', 'markdown'
+        ]
+
+        if human_mode:
+            # Show progress bars in terminal
+            result = subprocess.run(cmd)
+        else:
+            # Quiet mode for AI - suppress progress bars
+            cmd.append('--disable_tqdm')
+            result = subprocess.run(cmd, capture_output=True, text=True)
+
         if result.returncode != 0:
-            print(f"  Marker failed with return code {result.returncode}")
+            if human_mode:
+                print(f"  Marker failed with return code {result.returncode}")
+            else:
+                print(f"  Marker failed: {getattr(result, 'stderr', 'unknown error')}")
             return False
         return True
     except Exception as e:
@@ -139,7 +155,7 @@ Visit {paper['url']} for citation information.
     print(f"  Created README.md")
 
 
-def process_paper(paper: dict, resources_dir: Path, force: bool = False) -> bool:
+def process_paper(paper: dict, resources_dir: Path, force: bool = False, human_mode: bool = False) -> bool:
     """Process a single paper: download, convert, create README."""
     arxiv_id = paper['arxiv_id']
     paper_dir = resources_dir / 'papers' / arxiv_id
@@ -165,7 +181,7 @@ def process_paper(paper: dict, resources_dir: Path, force: bool = False) -> bool
             return False
 
         # Convert with marker
-        if not convert_with_marker(pdf_path, paper_dir):
+        if not convert_with_marker(pdf_path, paper_dir, human_mode=human_mode):
             return False
 
     # Marker creates a nested subdirectory with the PDF name
@@ -218,6 +234,8 @@ def main():
     parser.add_argument('--force', action='store_true', help='Reprocess existing papers')
     parser.add_argument('--list', action='store_true', help='List papers from CSV without downloading')
     parser.add_argument('--status', action='store_true', help='Show status of all papers')
+    parser.add_argument('--i-am-a-human', action='store_true', dest='human_mode',
+                        help='Human mode: show progress bars and verbose output')
     args = parser.parse_args()
 
     # Find repo root
@@ -284,7 +302,7 @@ def main():
         print(f"[{i+1}/{len(papers)}] Processing: {paper['name']} ({paper['arxiv_id']})")
         print(f"           ({remaining} remaining after this)")
 
-        if process_paper(paper, resources_dir, force=args.force):
+        if process_paper(paper, resources_dir, force=args.force, human_mode=args.human_mode):
             success += 1
             print(f"  ✓ Complete\n")
         else:
