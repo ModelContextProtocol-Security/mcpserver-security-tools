@@ -13,7 +13,7 @@ Papers are "software that runs in an AI runtime" - we want to make them actionab
 1. Read `data/mcp-security-tools.csv` to see which papers exist
 2. Pick a paper that doesn't have an analysis file yet
 3. Read the paper markdown from `resources/papers/{arxiv-id}/{arxiv-id}.md`
-4. Write analysis to `data/paper-analyses/{arxiv-id}.md`
+4. Write analysis to `resources/papers/{arxiv-id}/{arxiv-id}-analysis.md`
 5. If prompts found, write to `resources/papers/{arxiv-id}/{arxiv-id}-prompts.md`
 6. Update the CSV `evaluation_file` column
 7. **Append discoveries** to `data/research-notes.md`
@@ -92,7 +92,7 @@ If you find prompts, save them to `{arxiv-id}-prompts.md` (see Output section).
 ## Output
 
 ### 1. Analysis file
-`data/paper-analyses/{arxiv-id}.md` with YAML frontmatter:
+`resources/papers/{arxiv-id}/{arxiv-id}-analysis.md` with YAML frontmatter:
 
 ```yaml
 ---
