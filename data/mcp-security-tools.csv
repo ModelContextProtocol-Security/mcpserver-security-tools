@@ -15,6 +15,7 @@ Lasso MCP Gateway,https://github.com/lasso-security/mcp-gateway,"Open-source sec
 MintMCP Gateway,https://www.mintmcp.com/mcp-gateway,"Enterprise MCP gateway with SOC2 Type II certification. One-click OAuth/SSO protection, real-time secret scanning, supports Claude/ChatGPT/Cursor.",mintmcp-gateway.md
 TrueFoundry MCP Gateway,https://www.truefoundry.com/mcp-gateway,"Centralized MCP server management with security and reliability features.",truefoundry-mcp-gateway.md
 Pangea AI Guard,https://pangea.cloud/blog/secure-mcp-servers-with-ai-guardrails/,"MCP proxy for AI security guardrails. Checks for malicious prompts, redacts sensitive info, audit logging, IP/domain reputation checks.",pangea-ai-guard.md
+Armorer Guard,https://github.com/ArmorerLabs/Armorer-Guard,"MIT-licensed local Rust scanner and MCP proxy. Wraps stdio MCP servers and inspects tool-call arguments for prompt injection, credential leakage, exfiltration, and risky actions before execution.",armorer-guard.md
 Acuvity,https://acuvity.ai/,"Runtime security for MCP with Rego policy suite to defend against tool poisoning and covert instructions in tool descriptions.",acuvity.md
 MCPVerified,https://mcpverified.com/security/tools,"Directory of MCP security tools with verification status.",mcpverified.md
 Teleport MCP Security,https://goteleport.com/,"Zero-trust infrastructure identity platform extended to MCP. Strict access control, least privilege, comprehensive audit trails.",teleport-mcp-security.md
